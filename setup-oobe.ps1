@@ -50,9 +50,17 @@ foreach ($package in $packages) {
 
 # Trigger Windows System Updates
 Write-Host "Checking for and installing Windows System Updates..."
-Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartScan" -NoNewWindow -Wait
-Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartDownload" -NoNewWindow -Wait
-Start-Process -FilePath "UsoClient.exe" -ArgumentList "StartInstall" -NoNewWindow -Wait
+$usoClient = (Get-Command UsoClient.exe -ErrorAction SilentlyContinue)?.Source
+if (-not $usoClient) {
+    $usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
+}
+if (Test-Path $usoClient) {
+    Start-Process -FilePath $usoClient -ArgumentList "StartScan" -NoNewWindow -Wait
+    Start-Process -FilePath $usoClient -ArgumentList "StartDownload" -NoNewWindow -Wait
+    Start-Process -FilePath $usoClient -ArgumentList "StartInstall" -NoNewWindow -Wait
+} else {
+    Write-Warning "UsoClient.exe not found; skipping Windows Update commands."
+}
 
 # Notes:
 # - The computer will restart after Rename-Computer. If you want the script to continue installing apps before restart,
