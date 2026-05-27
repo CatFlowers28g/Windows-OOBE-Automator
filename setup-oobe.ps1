@@ -7,17 +7,26 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 # Allow this script to run without changing the system-wide execution policy
+Write-Host "Starting Windows OOBE automation..."
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
 # Configure timezone and synchronize time
-Set-TimeZone -Name "Central Standard Time"
-w32tm /resync
-
-
+Write-Host "Configuring timezone and synchronizing time..."
+try {
+    Set-TimeZone -Name "Central Standard Time"
+    w32tm /resync
+} catch {
+    Write-Warning "Timezone sync failed: $_"
+}
 
 # Disable standby on AC and DC power
-powercfg /change standby-timeout-ac 0
-powercfg /change standby-timeout-dc 0
+Write-Host "Disabling standby on AC and DC power..."
+try {
+    powercfg /change standby-timeout-ac 0
+    powercfg /change standby-timeout-dc 0
+} catch {
+    Write-Warning "Power configuration failed: $_"
+}
 
 # Run Decrapifier from the same folder as this script
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
