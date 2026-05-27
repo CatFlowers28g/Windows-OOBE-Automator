@@ -52,8 +52,10 @@ foreach ($package in $packages) {
 
 # Trigger Windows System Updates
 Write-Host "Checking for and installing Windows System Updates..."
-$usoClient = (Get-Command UsoClient.exe -ErrorAction SilentlyContinue)?.Source
-if (-not $usoClient) {
+$usoCmd = Get-Command UsoClient.exe -ErrorAction SilentlyContinue
+if ($usoCmd) {
+    $usoClient = $usoCmd.Source
+} else {
     $usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
 }
 if (Test-Path $usoClient) {
