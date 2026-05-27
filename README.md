@@ -13,8 +13,3 @@ Automates Windows workstation setup.
 
 ## Usage
 
-Run:
-
-```powershell
-
-.\setup.ps1 #
