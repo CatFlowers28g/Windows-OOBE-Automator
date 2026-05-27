@@ -33,10 +33,6 @@ if (Test-Path $decrapScript) {
     Write-Warning "Could not find decrap.ps1 in $scriptDirectory. Skipping decrapifier step."
 }
 
-# Rename the computer
-$newComputerName = "NEW-PC-NAME"
-Rename-Computer -NewName $newComputerName -Force
-
 # Install applications using winget
 $packages = @(
     'Google.Chrome',
