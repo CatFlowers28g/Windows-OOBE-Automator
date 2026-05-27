@@ -1,4 +1,6 @@
 # Requires administrative privileges
+# Run from an elevated PowerShell prompt instead of double-clicking the .ps1 file.
+# Example: powershell.exe -NoProfile -ExecutionPolicy Bypass -File "$PSScriptRoot\setup-oobe.ps1"
 if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     Write-Error "This script must be run as Administrator."
     exit 1
