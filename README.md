@@ -11,6 +11,8 @@ Automates Windows workstation setup.
 
 - Timezone sync
 
+- Decrap
+
 ## Usage
 
 Run the script from an elevated PowerShell prompt or use the included launcher:
