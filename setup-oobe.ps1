@@ -18,11 +18,24 @@ try {
     Write-Host "Current timezone: $currentTZ"
     Set-TimeZone -Name "Central Standard Time" -ErrorAction Stop
     Write-Host "Timezone set to Central Standard Time"
-    Write-Host "Running w32tm resync..."
-    w32tm /resync
-    Write-Host "Time synced successfully"
+    
+    # Ensure Windows Time service is running before attempting resync
+    Write-Host "Checking Windows Time service..."
+    $timeService = Get-Service -Name "W32Time" -ErrorAction SilentlyContinue
+    if ($timeService) {
+        if ($timeService.Status -ne "Running") {
+            Write-Host "Starting Windows Time service..."
+            Start-Service -Name "W32Time" -ErrorAction SilentlyContinue
+            Start-Sleep -Seconds 2
+        }
+        Write-Host "Running w32tm resync..."
+        w32tm /resync
+        Write-Host "Time synced successfully"
+    } else {
+        Write-Warning "Windows Time service not found; skipping time sync"
+    }
 } catch {
-    Write-Warning "Timezone sync warning: $_"
+    Write-Warning "Timezone/time sync warning: $_"
 }
 
 # Disable standby on AC and DC power
