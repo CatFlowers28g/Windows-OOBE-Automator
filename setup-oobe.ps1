@@ -7,26 +7,37 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
 }
 
 # Allow this script to run without changing the system-wide execution policy
-Write-Host "Starting Windows OOBE automation..."
+Write-Host "=== Starting Windows OOBE automation ===" -ForegroundColor Green
+Write-Host "Current directory: $($MyInvocation.MyCommand.Path)"
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
 # Configure timezone and synchronize time
-Write-Host "Configuring timezone and synchronizing time..."
+Write-Host "`n[1/3] Configuring timezone and synchronizing time..." -ForegroundColor Cyan
 try {
-    Set-TimeZone -Name "Central Standard Time"
+    $currentTZ = (Get-TimeZone).DisplayName
+    Write-Host "Current timezone: $currentTZ"
+    Set-TimeZone -Name "Central Standard Time" -ErrorAction Stop
+    Write-Host "Timezone set to Central Standard Time"
+    Write-Host "Running w32tm resync..."
     w32tm /resync
+    Write-Host "Time synced successfully"
 } catch {
-    Write-Warning "Timezone sync failed: $_"
+    Write-Warning "Timezone sync warning: $_"
 }
 
 # Disable standby on AC and DC power
-Write-Host "Disabling standby on AC and DC power..."
+Write-Host "`n[2/3] Disabling standby on AC and DC power..." -ForegroundColor Cyan
 try {
+    Write-Host "Disabling AC standby..."
     powercfg /change standby-timeout-ac 0
+    Write-Host "Disabling DC standby..."
     powercfg /change standby-timeout-dc 0
+    Write-Host "Power settings configured"
 } catch {
-    Write-Warning "Power configuration failed: $_"
+    Write-Warning "Power configuration warning: $_"
 }
+
+Write-Host "`n[3/3] Preparing to run Decrapifier..." -ForegroundColor Cyan
 
 # Run Decrapifier from the same folder as this script
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
