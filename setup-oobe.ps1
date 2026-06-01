@@ -39,13 +39,19 @@ try {
 }
 
 # Disable standby on AC and DC power
-Write-Host "`n[2/3] Disabling standby on AC and DC power..." -ForegroundColor Cyan
+Write-Host "`n[2/3] Disabling standby and display timeout on AC and DC power..." -ForegroundColor Cyan
 try {
-    Write-Host "Disabling AC standby..."
+    Write-Host "Disabling AC standby (plugged in)..."
     powercfg /change standby-timeout-ac 0
-    Write-Host "Disabling DC standby..."
+    Write-Host "Disabling DC standby (on battery)..."
     powercfg /change standby-timeout-dc 0
-    Write-Host "Power settings configured"
+    
+    Write-Host "Disabling AC display timeout (plugged in)..."
+    powercfg /change monitor-timeout-ac 0
+    Write-Host "Disabling DC display timeout (on battery)..."
+    powercfg /change monitor-timeout-dc 0
+    
+    Write-Host "Power settings configured: Never sleep, never turn off display"
 } catch {
     Write-Warning "Power configuration warning: $_"
 }
