@@ -16,22 +16,52 @@ param (
     [string]$Branch = 'main'
 )
 
-$baseUrl = "https://raw.githubusercontent.com/$Repository/$Branch"
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+} catch {
+    # Ignore if unsupported in older PowerShell versions
+}
+
+$rawBaseUrl = "https://raw.githubusercontent.com/$Repository/$Branch"
+$githubRawUrl = "https://github.com/$Repository/raw/$Branch"
 $scripts = @(
     'setup-oobe.ps1',
     'decrap.ps1'
 )
+
+function Download-ScriptFromWeb {
+    param (
+        [string]$ScriptName,
+        [string]$DestinationPath
+    )
+
+    $urls = @(
+        "$rawBaseUrl/$ScriptName",
+        "$githubRawUrl/$ScriptName"
+    )
+
+    foreach ($url in $urls) {
+        Write-Host "Attempting download of $ScriptName from $url..." -ForegroundColor Cyan
+        try {
+            Invoke-WebRequest -Uri $url -OutFile $DestinationPath -UseBasicParsing -ErrorAction Stop
+            Write-Host "Downloaded $ScriptName from $url" -ForegroundColor Green
+            return
+        }
+        catch {
+            Write-Warning "Failed to download $ScriptName from $url: $_"
+        }
+    }
+
+    throw "Unable to download $ScriptName from any known URL."
+}
 
 try {
     $tempFolder = Join-Path -Path $env:TEMP -ChildPath "Windows-OOBE-Automator-$(Get-Random)"
     New-Item -Path $tempFolder -ItemType Directory -Force | Out-Null
 
     foreach ($script in $scripts) {
-        $url = "$baseUrl/$script"
         $destination = Join-Path -Path $tempFolder -ChildPath $script
-
-        Write-Host "Downloading $script from $url..." -ForegroundColor Cyan
-        Invoke-WebRequest -Uri $url -OutFile $destination -UseBasicParsing -ErrorAction Stop
+        Download-ScriptFromWeb -ScriptName $script -DestinationPath $destination
     }
 
     Write-Host "Downloaded scripts to $tempFolder" -ForegroundColor Green
