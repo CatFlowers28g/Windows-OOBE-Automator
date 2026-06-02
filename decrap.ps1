@@ -118,9 +118,8 @@ $StartLayoutStr = @"
 #Removes all apps or some apps depending on switches used.
 
 Function RemoveApps {
-	#SafeApps contains apps that shouldn't be removed, or just can't and cause errors.
-	#Preserve Windows runtime/runtime-related packages to avoid removing essential runtime components.
-	$SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|XGpuEject|runtime"
+	#SafeApps contains apps that shouldn't be removed, or just can't and cause errors
+	$SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|XGpuEject"
 	If ($Xbox) {
 		$SafeApps = "$SafeApps|Xbox" 
 }
