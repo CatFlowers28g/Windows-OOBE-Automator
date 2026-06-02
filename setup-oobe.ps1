@@ -11,6 +11,82 @@ Write-Host "=== Starting Windows OOBE automation ===" -ForegroundColor Green
 Write-Host "Current directory: $($MyInvocation.MyCommand.Path)"
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
+# Attempt to join the Wi-Fi network as the very first action
+Write-Host "`n[0/3] Joining Wi‑Fi network 'Syand Service'..." -ForegroundColor Cyan
+try {
+    $ssid = "Syand Service"
+    $password = "ilovefiber!"
+    # Optional timeout (seconds). If not set or set to 0, wait indefinitely until connected.
+    $timeout = 0
+    if ($env:WIFI_JOIN_TIMEOUT) {
+        [int]$timeout = [int]$env:WIFI_JOIN_TIMEOUT
+    }
+
+    $profileXml = @"
+<WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
+    <name>$ssid</name>
+    <SSIDConfig>
+        <SSID>
+            <name>$ssid</name>
+        </SSID>
+    </SSIDConfig>
+    <connectionType>ESS</connectionType>
+    <connectionMode>auto</connectionMode>
+    <MSM>
+        <security>
+            <authEncryption>
+                <authentication>WPA2PSK</authentication>
+                <encryption>AES</encryption>
+                <useOneX>false</useOneX>
+            </authEncryption>
+            <sharedKey>
+                <keyType>passPhrase</keyType>
+                <protected>false</protected>
+                <keyMaterial>$password</keyMaterial>
+            </sharedKey>
+        </security>
+    </MSM>
+</WLANProfile>
+"@
+    $tempProfile = Join-Path $env:TEMP "wifi_profile.xml"
+    $profileXml | Out-File -FilePath $tempProfile -Encoding ascii
+    netsh wlan add profile filename="$tempProfile" user=current | Out-Null
+    netsh wlan connect name="$ssid" ssid="$ssid" | Out-Null
+
+    # Wait until connected to the specified SSID before continuing.
+    $start = Get-Date
+    Write-Host "Waiting for connection to '$ssid'..."
+    while ($true) {
+        try {
+            $iface = netsh wlan show interfaces 2>$null | Out-String
+            $isConnected = $false
+            if ($iface -match "State\s*:\s*(?<state>\w+)") { $state = $Matches['state'] } else { $state = "" }
+            if ($iface -match "SSID\s*:\s*(?<ssid>.+)") { $currentSsid = $Matches['ssid'].Trim() } else { $currentSsid = "" }
+            if ($state -ieq "connected" -and $currentSsid -eq $ssid) { $isConnected = $true }
+            if ($isConnected) { Write-Host "Connected to $ssid"; break }
+        } catch {
+            Write-Warning "Error checking Wi‑Fi state: $_"
+        }
+
+        if ($timeout -gt 0) {
+            $elapsed = (Get-Date) - $start
+            if ($elapsed.TotalSeconds -ge $timeout) {
+                Write-Warning "Timeout ($timeout s) reached waiting for Wi‑Fi connection to $ssid. Exiting to avoid continuing without network."
+                exit 1
+            }
+        }
+
+        Write-Host "Still waiting for $ssid..." -ForegroundColor Yellow
+        Start-Sleep -Seconds 5
+    }
+
+    # Clean up profile file
+    Remove-Item -Path $tempProfile -ErrorAction SilentlyContinue
+} catch {
+    Write-Warning "Wi-Fi join warning: $_"
+    exit 1
+}
+
 # Configure timezone and synchronize time
 Write-Host "`n[1/3] Configuring timezone and synchronizing time..." -ForegroundColor Cyan
 try {
