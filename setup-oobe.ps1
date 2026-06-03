@@ -161,8 +161,8 @@ $packages = @(
 )
 
 foreach ($package in $packages) {
-    Write-Host "Installing $package..."
-    winget install --id $package -e --silent --accept-package-agreements --accept-source-agreements
+    Write-Host "Installing $package for all users..."
+    winget install --id $package -e --silent --scope machine --accept-package-agreements --accept-source-agreements
 }
 
 # Trigger Windows System Updates
