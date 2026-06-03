@@ -11,6 +11,10 @@ Write-Host "=== Starting Windows OOBE automation ===" -ForegroundColor Green
 Write-Host "Current directory: $($MyInvocation.MyCommand.Path)"
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
+# Configure winget settings to bypass certificate pinning
+Write-Host "`nConfiguring winget settings..." -ForegroundColor Cyan
+winget settings --enable BypassCertificatePinningForMicrosoftStore
+
 # Attempt to join the Wi-Fi network as the very first action
 Write-Host "`n[0/3] Joining Wi‑Fi network 'Syand Service'..." -ForegroundColor Cyan
 try {
