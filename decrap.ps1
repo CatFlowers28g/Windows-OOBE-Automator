@@ -114,8 +114,8 @@ $StartLayoutStr = @"
 
 Function RemoveApps {
     # SafeApps contains apps that shouldn't be removed, or just can't and cause errors
-    $SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams|Microsoft\.Windows|Microsoft\.Xbox|Microsoft\.MicrosoftEdge|Microsoft\.OfficeHub"
-    $ProtectedPackages = "Microsoft\.Windows|Microsoft\.Xbox"
+    $SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams|Microsoft\.Windows|Microsoft\.Xbox|Microsoft\.MicrosoftEdge|Microsoft\.OfficeHub|Microsoft\.CredDialogHost|Microsoft\.Win32WebViewHost|MicrosoftWindows\.|Windows\.|Microsoft\.Winget\.Source"
+    $ProtectedPackages = "Microsoft\.Windows|Microsoft\.Xbox|MicrosoftWindows\.|Windows\.|Microsoft\.Winget\.Source"
 
     if ($Xbox) { $SafeApps = "$SafeApps|Xbox" }
 
@@ -674,9 +674,6 @@ If ($AppsOnly) {
 }Else {
     RemoveMcAfee
 	RemoveApps
-    DisableTasks
-    DisableServices
-    RegChange
     ClearStartMenu
     Goodbye
 }
