@@ -116,6 +116,8 @@ $StartLayoutStr = @"
 Function RemoveApps {
     # SafeApps contains apps that shouldn't be removed, or just can't and cause errors
     $SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams"
+    $ProtectedPackages = "Microsoft.Windows.PinningConfirmationDialog|Microsoft.Windows.PrintQueueActionCenter|Microsoft.XboxGameCallableUI"
+
     if ($Xbox) { $SafeApps = "$SafeApps|Xbox" }
 
     if ($AllApps) {
@@ -125,14 +127,14 @@ Function RemoveApps {
     }
 
     try {
-        $RemoveApps = Get-AppxPackage -AllUsers | Where-Object { $_.Name -notmatch $SafeApps } -ErrorAction SilentlyContinue
+        $RemoveApps = Get-AppxPackage -AllUsers | Where-Object { $_.Name -notmatch $SafeApps -and $_.Name -notmatch $ProtectedPackages } -ErrorAction SilentlyContinue
     } catch {
         Write-Warning "Failed to enumerate Appx packages: $_"
         $RemoveApps = @()
     }
 
     try {
-        $RemovePrApps = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -notmatch $SafeApps } -ErrorAction SilentlyContinue
+        $RemovePrApps = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -notmatch $SafeApps -and $_.PackageName -notmatch $ProtectedPackages } -ErrorAction SilentlyContinue
     } catch {
         Write-Warning "Failed to enumerate provisioned Appx packages: $_"
         $RemovePrApps = @()

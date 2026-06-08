@@ -180,7 +180,7 @@ if ($wingetCmd) {
         try {
             & $wingetCmd.Source install --id $package -e --silent --scope machine --accept-package-agreements --accept-source-agreements
         } catch {
-            Write-Warning "winget failed to install $package: $_"
+            Write-Warning ("winget failed to install {0}: {1}" -f $package, $_)
         }
     }
 } else {
@@ -208,3 +208,6 @@ if (Test-Path $usoClient) {
 #   move Rename-Computer to the end and remove -Restart from the Rename-Computer call.
 # - "decrap" operations are not defined in this script. Add cleanup commands here if needed.
 # - A restart is already triggered by Rename-Computer above.
+
+Write-Host "`nScript complete. Press Enter to exit..." -ForegroundColor Green
+Read-Host
