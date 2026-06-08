@@ -152,8 +152,81 @@ Function RemoveApps {
 }
 } 
 #End Function RemoveApps
-		
-	
+
+#Remove McAfee products and artifacts
+Function RemoveMcAfee {
+    Write-Host "***Removing McAfee products if installed...***"
+
+    $found = @()
+
+    Try {
+        $found += Get-CimInstance -ClassName Win32_Product -Filter "Name LIKE 'McAfee%'" -ErrorAction SilentlyContinue
+    } Catch {
+        # Ignore failures if WMI/CIM isn't available or query fails
+    }
+
+    $uninstallKeys = @(
+        "HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*",
+        "HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*"
+    )
+
+    foreach ($key in $uninstallKeys) {
+        Get-ChildItem $key -ErrorAction SilentlyContinue | ForEach-Object {
+            $props = Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue
+            if ($props.DisplayName -and $props.DisplayName -match 'McAfee') {
+                $found += [pscustomobject]@{
+                    Name = $props.DisplayName
+                    UninstallString = $props.UninstallString
+                }
+            }
+        }
+    }
+
+    $found = $found | Select-Object -Property Name, UninstallString -Unique
+
+    foreach ($item in $found) {
+        if ($item.Name) {
+            Write-Host "Removing McAfee product: $($item.Name)"
+        }
+        if ($item.UninstallString) {
+            $uninstallString = $item.UninstallString
+            if ($uninstallString -match '\bmsiexec(?:\.exe)?\b' -and $uninstallString -notmatch '/x') {
+                $uninstallString = $uninstallString -replace '/I', '/X'
+            }
+            Try {
+                Start-Process -FilePath "cmd.exe" -ArgumentList "/c", $uninstallString -Wait -NoNewWindow -ErrorAction SilentlyContinue
+            } Catch {
+                Write-Host "Failed to run uninstall string for $($item.Name)"
+            }
+        }
+    }
+
+    Get-Service -ErrorAction SilentlyContinue | Where-Object {
+        $_.Name -match 'McAfee|Mfe' -or $_.DisplayName -match 'McAfee|Mfe'
+    } | ForEach-Object {
+        Try {
+            Stop-Service -Name $_.Name -Force -ErrorAction SilentlyContinue
+            Set-Service -Name $_.Name -StartupType Disabled -ErrorAction SilentlyContinue
+        } Catch {
+            # Ignore service stop failures
+        }
+    }
+
+    $paths = @(
+        "$Env:ProgramFiles\McAfee",
+        "$Env:ProgramFiles(x86)\McAfee"
+    )
+    foreach ($path in $paths) {
+        if (Test-Path $path) {
+            Try {
+                Remove-Item $path -Recurse -Force -ErrorAction SilentlyContinue
+            } Catch {
+                # Ignore file removal failures
+            }
+        }
+    }
+}
+
 #Disable scheduled tasks
 #Tasks: Various CEIP and information gathering/sending tasks.
 Function DisableTasks {
@@ -573,16 +646,19 @@ If ($NoLog) {
 }
 Write-Host "******Decrapifying Windows 10...******"
 If ($AppsOnly) {
+    RemoveMcAfee
     RemoveApps
     ClearStartMenu
     Goodbye
 }Elseif ($SettingsOnly) {
+    RemoveMcAfee
     DisableTasks
     DisableServices
     RegChange
     ClearStartMenu
     Goodbye
 }Else {
+    RemoveMcAfee
 	RemoveApps
     DisableTasks
     DisableServices

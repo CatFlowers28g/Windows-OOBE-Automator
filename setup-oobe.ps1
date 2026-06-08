@@ -161,7 +161,8 @@ $packages = @(
     'Adobe.Acrobat.Reader.64-bit',
     'Microsoft.Office',
     'Microsoft.Teams',
-    'Zoom.Zoom'
+    'Zoom.Zoom',
+    'Microsoft.AzureVpnClient'
 )
 
 foreach ($package in $packages) {
