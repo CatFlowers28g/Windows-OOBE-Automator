@@ -13,7 +13,16 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 
 # Configure winget settings to bypass certificate pinning
 Write-Host "`nConfiguring winget settings..." -ForegroundColor Cyan
-winget settings --enable BypassCertificatePinningForMicrosoftStore
+$wingetCmd = Get-Command winget -ErrorAction SilentlyContinue
+if ($wingetCmd) {
+    try {
+        & $wingetCmd.Source settings --enable BypassCertificatePinningForMicrosoftStore
+    } catch {
+        Write-Warning "Failed to set winget settings: $_"
+    }
+} else {
+    Write-Warning "winget not found; skipping winget configuration and package installs."
+}
 
 # Attempt to join the Wi-Fi network as the very first action
 Write-Host "`n[0/3] Joining Wi‑Fi network 'Syand Service'..." -ForegroundColor Cyan
@@ -165,9 +174,17 @@ $packages = @(
     'Microsoft.AzureVpnClient'
 )
 
-foreach ($package in $packages) {
-    Write-Host "Installing $package for all users..."
-    winget install --id $package -e --silent --scope machine --accept-package-agreements --accept-source-agreements
+if ($wingetCmd) {
+    ForEach ($package in $packages) {
+        Write-Host "Installing $package for all users..."
+        try {
+            & $wingetCmd.Source install --id $package -e --silent --scope machine --accept-package-agreements --accept-source-agreements
+        } catch {
+            Write-Warning "winget failed to install $package: $_"
+        }
+    }
+} else {
+    Write-Warning "winget unavailable; skipped installing packages."
 }
 
 # Trigger Windows System Updates

@@ -92,7 +92,7 @@ $GoodApps =	"calculator|camera|sticky|store|windows.photos|soundrecorder|mspaint
 #	<**YOUR START LAYOUT XML**>
 #	"@
 
-$StartLayoutStr = @" 
+$StartLayoutStr = @"
 <LayoutModificationTemplate Version="1" xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification">
   <LayoutOptions StartTileGroupCellWidth="6" />
   <DefaultLayoutOverride>
@@ -105,52 +105,67 @@ $StartLayoutStr = @"
         </start:Group>
       </defaultlayout:StartLayout>
     </StartLayoutCollection>
-  </DefaultLayoutOverride>
+    </DefaultLayoutOverride>
 </LayoutModificationTemplate>
 "@
-
-#------End editable variables------
-
-
 #---Functions---
 
 #Appx removal
 #Removes all apps or some apps depending on switches used.
 
 Function RemoveApps {
-	#SafeApps contains apps that shouldn't be removed, or just can't and cause errors
-	$SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams"
-	If ($Xbox) {
-		$SafeApps = "$SafeApps|Xbox" 
+    # SafeApps contains apps that shouldn't be removed, or just can't and cause errors
+    $SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams"
+    if ($Xbox) { $SafeApps = "$SafeApps|Xbox" }
+
+    if ($AllApps) {
+        $SafeApps = $SafeApps
+    } else {
+        $SafeApps = "$SafeApps|$GoodApps"
+    }
+
+    try {
+        $RemoveApps = Get-AppxPackage -AllUsers | Where-Object { $_.Name -notmatch $SafeApps } -ErrorAction SilentlyContinue
+    } catch {
+        Write-Warning "Failed to enumerate Appx packages: $_"
+        $RemoveApps = @()
+    }
+
+    try {
+        $RemovePrApps = Get-AppxProvisionedPackage -Online | Where-Object { $_.DisplayName -notmatch $SafeApps } -ErrorAction SilentlyContinue
+    } catch {
+        Write-Warning "Failed to enumerate provisioned Appx packages: $_"
+        $RemovePrApps = @()
+    }
+
+    foreach ($RemovedApp in $RemoveApps) {
+        Write-Host "Removing app package: $($RemovedApp.Name)"
+        try {
+            Remove-AppxPackage -Package $RemovedApp -ErrorAction Stop
+        } catch {
+            Write-Warning "Failed to remove app package '$($RemovedApp.Name)': $_"
+        }
+    }
+
+    foreach ($RemovedPrApp in $RemovePrApps) {
+        Write-Host "Removing provisioned app $($RemovedPrApp.DisplayName)"
+        if ($RemovedPrApp.PackageName) {
+            try {
+                Remove-AppxProvisionedPackage -Online -PackageName $RemovedPrApp.PackageName -ErrorAction Stop
+            } catch {
+                Write-Warning "Failed to remove provisioned package '$($RemovedPrApp.PackageName)': $_"
+            }
+        } elseif ($RemovedPrApp.packagename) {
+            try {
+                Remove-AppxProvisionedPackage -Online -Packagename $RemovedPrApp.packagename -ErrorAction Stop
+            } catch {
+                Write-Warning "Failed to remove provisioned package '$($RemovedPrApp.packagename)': $_"
+            }
+        } else {
+            Write-Warning "Provisioned app entry has no Packagename: $($RemovedPrApp.DisplayName)"
+        }
+    }
 }
-	
-	If ($Allapps) {
-		$RemoveApps = Get-AppxPackage -allusers | where-object {$_.name -notmatch $SafeApps}
-		$RemovePrApps = Get-AppxProvisionedPackage -online | where-object {$_.displayname -notmatch $SafeApps}
-			ForEach ($RemovedApp in $RemoveApps) {
-				Write-Host Removing app package: $RemovedApp.name
-				Remove-AppxPackage -package $RemovedApp -erroraction silentlycontinue
-				
-}			ForEach ($RemovedPrApp in $RemovePrApps) {
-				Write-Host Removing provisioned app $RemovedPrApp.displayname
-				Remove-AppxProvisionedPackage -online -packagename $RemovedPrApp.packagename -erroraction silentlycontinue
-				
-}
-}	Else {
-		$SafeApps = "$SafeApps|$GoodApps"
-		$RemoveApps = Get-AppxPackage -allusers | where-object {$_.name -notmatch $SafeApps}
-		$RemovePrApps = Get-AppxProvisionedPackage -online | where-object {$_.displayname -notmatch $SafeApps}
-			ForEach ($RemovedApp in $RemoveApps) {
-				Write-Host Removing app package: $RemovedApp.name
-				Remove-AppxPackage -package $RemovedApp -erroraction silentlycontinue
-				
-}			ForEach ($RemovedPrApp in $RemovePrApps) {
-				Write-Host Removing provisioned app $RemovedPrApp.displayname
-				Remove-AppxProvisionedPackage -online -packagename $RemovedPrApp.packagename -erroraction silentlycontinue
-				
-}
-}
-} 
 #End Function RemoveApps
 
 #Remove McAfee products and artifacts
@@ -599,33 +614,31 @@ Function RegSetMachine {
 }           
 
 
-#Clean up the default start menu    
+#Clean up the default start menu
 Function ClearStartMenu {
-    If ($ClearStart) {
-		Write-Host "***Setting empty start menu for new profiles...***"
-#Don't edit this. Creates empty start menu if -ClearStart is used.
-        $StartLayoutStr = @"
-<LayoutModificationTemplate Version="1" xmlns="http://schemas.microsoft.com/Start/2014/LayoutModification" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout" xmlns:start="http://schemas.microsoft.com/Start/2014/StartLayout" xmlns:taskbar="http://schemas.microsoft.com/Start/2014/TaskbarLayout">
-  <LayoutOptions StartTileGroupCellWidth="6" />
-  <DefaultLayoutOverride>
-    <StartLayoutCollection>
-      <defaultlayout:StartLayout GroupCellWidth="6" xmlns:defaultlayout="http://schemas.microsoft.com/Start/2014/FullDefaultLayout">
-      </defaultlayout:StartLayout>
-    </StartLayoutCollection>
-  </DefaultLayoutOverride>
-  </LayoutModificationTemplate>
-"@
-	    add-content $Env:TEMP\startlayout.xml $StartLayoutStr
-        import-startlayout -layoutpath $Env:TEMP\startlayout.xml -mountpath $Env:SYSTEMDRIVE\
-        remove-item $Env:TEMP\startlayout.xml
-}    Else {        
-		Write-Host "***Setting clean start menu for new profiles...***"
-#Custom start layout XML near the top of the script.
+    if ($ClearStart) {
+        Write-Host "***Setting empty start menu for new profiles...***"
+    } else {
+        Write-Host "***Setting clean start menu for new profiles...***"
+    }
 
-        add-content $Env:TEMP\startlayout.xml $StartLayoutStr
-        import-startlayout -layoutpath $Env:TEMP\startlayout.xml -mountpath $Env:SYSTEMDRIVE\
-        remove-item $Env:TEMP\startlayout.xml
-}
+    $startLayoutPath = Join-Path $Env:TEMP "startlayout.xml"
+    try {
+        $StartLayoutStr | Out-File -FilePath $startLayoutPath -Encoding UTF8 -Force
+        if (Test-Path $startLayoutPath) {
+            try {
+                Import-StartLayout -LayoutPath $startLayoutPath -MountPath $Env:SYSTEMDRIVE
+                Write-Host "Start layout imported successfully"
+            } catch {
+                Write-Warning "Import-StartLayout failed: $_"
+            }
+            Remove-Item $startLayoutPath -ErrorAction SilentlyContinue
+        } else {
+            Write-Warning "Start layout file not created at $startLayoutPath"
+        }
+    } catch {
+        Write-Warning "Failed to create or import start layout: $_"
+    }
 }
 
 
