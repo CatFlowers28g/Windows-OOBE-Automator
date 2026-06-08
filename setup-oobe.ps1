@@ -153,7 +153,18 @@ if (Test-Path $decrapScript) {
 } else {
     Write-Warning "Could not find decrap.ps1 in $scriptDirectory. Skipping decrapifier step."
 }
+# Remove Lenovo Vantage (main culprit for rewards prompts)
+Get-AppxPackage *LenovoVantage* | Remove-AppxPackage -ErrorAction SilentlyContinue
 
+# Remove Lenovo Welcome / Experience apps (varies by model)
+Get-AppxPackage *Lenovo* | Where-Object {
+    $_.Name -match "Welcome|Experience|Companion"
+} | Remove-AppxPackage -ErrorAction SilentlyContinue
+
+# Remove provisioned versions (prevents reappearing for new users)
+Get-AppxProvisionedPackage -Online | Where-Object {
+    $_.DisplayName -match "Lenovo"
+} | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
 # Install applications using winget
 $packages = @(
     'Google.Chrome',
