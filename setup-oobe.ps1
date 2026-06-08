@@ -185,16 +185,20 @@ foreach ($package in $packages) {
 
 # Trigger Windows System Updates
 Write-Host "Checking for and installing Windows System Updates..."
-$usoCmd = Get-Command UsoClient.exe -ErrorAction SilentlyContinue
-if ($usoCmd) {
-    $usoClient = $usoCmd.Source
-} else {
-    $usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
-}
+# Start Windows Update service first
+Start-Service -Name wuauserv -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+$usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
 if (Test-Path $usoClient) {
-    Start-Process -FilePath $usoClient -ArgumentList "StartScan" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartDownload" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartInstall" -NoNewWindow -Wait
+    Write-Host "Starting Windows Update scan..."
+    Start-Process -FilePath $usoClient -ArgumentList "/StartScan" -NoNewWindow -Wait
+    Start-Sleep -Seconds 3
+    Write-Host "Downloading updates..."
+    Start-Process -FilePath $usoClient -ArgumentList "/StartDownload" -NoNewWindow -Wait
+    Start-Sleep -Seconds 3
+    Write-Host "Installing updates..."
+    Start-Process -FilePath $usoClient -ArgumentList "/StartInstall" -NoNewWindow -Wait
 } else {
     Write-Warning "UsoClient.exe not found; skipping Windows Update commands."
 }
@@ -396,16 +400,20 @@ if ($wingetCmd) {
 
 # Trigger Windows System Updates
 Write-Host "Checking for and installing Windows System Updates..."
-$usoCmd = Get-Command UsoClient.exe -ErrorAction SilentlyContinue
-if ($usoCmd) {
-    $usoClient = $usoCmd.Source
-} else {
-    $usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
-}
+# Start Windows Update service first
+Start-Service -Name wuauserv -ErrorAction SilentlyContinue
+Start-Sleep -Seconds 2
+
+$usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
 if (Test-Path $usoClient) {
-    Start-Process -FilePath $usoClient -ArgumentList "StartScan" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartDownload" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartInstall" -NoNewWindow -Wait
+    Write-Host "Starting Windows Update scan..."
+    Start-Process -FilePath $usoClient -ArgumentList "/StartScan" -NoNewWindow -Wait
+    Start-Sleep -Seconds 3
+    Write-Host "Downloading updates..."
+    Start-Process -FilePath $usoClient -ArgumentList "/StartDownload" -NoNewWindow -Wait
+    Start-Sleep -Seconds 3
+    Write-Host "Installing updates..."
+    Start-Process -FilePath $usoClient -ArgumentList "/StartInstall" -NoNewWindow -Wait
 } else {
     Write-Warning "UsoClient.exe not found; skipping Windows Update commands."
 }
