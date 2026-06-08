@@ -659,8 +659,8 @@ If ($NoLog) {
 #-AppsOnly      Only removes apps, doesn't touch privacy settings, services, and scheduled tasks. Cannot be used with -SettingsOnly switch. Can be used with all the others.
 #-SettingsOnly  Only adjusts privacy settings, services, and scheduled tasks. Leaves apps. Cannot be used with -AppsOnly switch.  Can be used with all others (-AllApps won't do anything in that case, obviously).
 
-[cmdletbinding(DefaultParameterSetName="Decrapifier")]
 param (
+    [CmdletBinding(DefaultParameterSetName="Decrapifier")]
     [switch]$LeaveTasks,
     [switch]$LeaveServices,
 	[switch]$AppAccess,
