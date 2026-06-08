@@ -63,7 +63,6 @@
 
 [cmdletbinding(DefaultParameterSetName="Decrapifier")]
 param (
-	[switch]$AllApps, 
     [switch]$LeaveTasks,
     [switch]$LeaveServices,
 	[switch]$AppAccess,
@@ -115,8 +114,8 @@ $StartLayoutStr = @"
 
 Function RemoveApps {
     # SafeApps contains apps that shouldn't be removed, or just can't and cause errors
-    $SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams"
-    $ProtectedPackages = "Microsoft.Windows.PinningConfirmationDialog|Microsoft.Windows.PrintQueueActionCenter|Microsoft.XboxGameCallableUI"
+    $SafeApps = "AAD.brokerplugin|accountscontrol|apprep.chxapp|assignedaccess|asynctext|bioenrollment|capturepicker|cloudexperience|contentdelivery|desktopappinstaller|ecapp|edge|extension|getstarted|immersivecontrolpanel|lockapp|net.native|oobenet|parentalcontrols|PPIProjection|search|sechealth|secureas|shellexperience|startmenuexperience|terminal|vclibs|xaml|Runtime|XGpuEject|MSTeams|Microsoft\.Windows|Microsoft\.Xbox|Microsoft\.MicrosoftEdge|Microsoft\.OfficeHub"
+    $ProtectedPackages = "Microsoft\.Windows|Microsoft\.Xbox"
 
     if ($Xbox) { $SafeApps = "$SafeApps|Xbox" }
 
