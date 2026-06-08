@@ -164,7 +164,9 @@ Get-AppxPackage *Lenovo* | Where-Object {
 # Remove provisioned versions (prevents reappearing for new users)
 Get-AppxProvisionedPackage -Online | Where-Object {
     $_.DisplayName -match "Lenovo"
-} | Remove-AppxProvisionedPackage -Online -ErrorAction SilentlyContinue
+} | ForEach-Object {
+    Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue
+}
 # Install applications using winget
 $packages = @(
     'Google.Chrome',
