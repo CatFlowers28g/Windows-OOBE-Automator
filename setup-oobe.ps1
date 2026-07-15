@@ -172,10 +172,9 @@ $packages = @(
     'Google.Chrome',
     'Mozilla.Firefox',
     'Adobe.Acrobat.Reader.64-bit',
-    'Microsoft.Office',
     'Microsoft.Teams',
     'Zoom.Zoom',
-    'Microsoft.AzureVpnClient'
+    'VideoLAN.VLC'
 )
 
 foreach ($package in $packages) {
@@ -183,21 +182,6 @@ foreach ($package in $packages) {
     winget install --id $package -e --silent --scope machine --accept-package-agreements --accept-source-agreements
 }
 
-# Trigger Windows System Updates
-Write-Host "Checking for and installing Windows System Updates..."
-$usoCmd = Get-Command UsoClient.exe -ErrorAction SilentlyContinue
-if ($usoCmd) {
-    $usoClient = $usoCmd.Source
-} else {
-    $usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
-}
-if (Test-Path $usoClient) {
-    Start-Process -FilePath $usoClient -ArgumentList "StartScan" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartDownload" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartInstall" -NoNewWindow -Wait
-} else {
-    Write-Warning "UsoClient.exe not found; skipping Windows Update commands."
-}
 
 # Notes:
 # - The computer will restart after Rename-Computer. If you want the script to continue installing apps before restart,
@@ -375,10 +359,9 @@ $packages = @(
     'Google.Chrome',
     'Mozilla.Firefox',
     'Adobe.Acrobat.Reader.64-bit',
-    'Microsoft.Office',
     'Microsoft.Teams',
-    'Zoom.Zoom',
-    'Microsoft.AzureVpnClient'
+    'Zoom.Zoom'
+
 )
 
 if ($wingetCmd) {
@@ -394,21 +377,7 @@ if ($wingetCmd) {
     Write-Warning "winget unavailable; skipped installing packages."
 }
 
-# Trigger Windows System Updates
-Write-Host "Checking for and installing Windows System Updates..."
-$usoCmd = Get-Command UsoClient.exe -ErrorAction SilentlyContinue
-if ($usoCmd) {
-    $usoClient = $usoCmd.Source
-} else {
-    $usoClient = Join-Path $env:WINDIR 'System32\UsoClient.exe'
-}
-if (Test-Path $usoClient) {
-    Start-Process -FilePath $usoClient -ArgumentList "StartScan" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartDownload" -NoNewWindow -Wait
-    Start-Process -FilePath $usoClient -ArgumentList "StartInstall" -NoNewWindow -Wait
-} else {
-    Write-Warning "UsoClient.exe not found; skipping Windows Update commands."
-}
+
 
 # Notes:
 # - The computer will restart after Rename-Computer. If you want the script to continue installing apps before restart,
