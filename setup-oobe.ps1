@@ -173,8 +173,7 @@ $packages = @(
     'Mozilla.Firefox',
     'Adobe.Acrobat.Reader.64-bit',
     'Microsoft.Teams',
-    'Zoom.Zoom',
-    'VideoLAN.VLC'
+    'Zoom.Zoom'
 )
 
 foreach ($package in $packages) {
@@ -360,8 +359,8 @@ $packages = @(
     'Mozilla.Firefox',
     'Adobe.Acrobat.Reader.64-bit',
     'Microsoft.Teams',
-    'Zoom.Zoom'
-
+    'Zoom.Zoom',
+    'Microsoft.Office'
 )
 
 if ($wingetCmd) {
