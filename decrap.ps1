@@ -52,7 +52,7 @@ $staged     = $false
 Function RemoveApps {
     $SafeApps = "AAD.brokerplugin|AccountsControl|apprep.chxapp|AssignedAccess|AsyncTextService|BioEnrollment|CapturePicker|CloudExperienceHost|ContentDeliveryManager|CrossDevice|DesktopAppInstaller|ECApp|Edge|Extension|GetStarted|ImmersiveControlPanel|LockApp|NarratorQuickStart|Native|NcsiUwpApp|OOBENetworkCaptivePortal|OOBENetworkConnectionFlow|ParentalControls|PeopleExperienceHost|PinningConfirmationDialog|PPIProjection|SecHealthUI|SecureAssessmentBrowser|ShellExperienceHost|StartExperiencesApp|StartMenuExperienceHost|UI.Xaml|VCLibs|Wallet|WebExperience|Win32WebViewHost|WindowsAppRuntime|Windows.CBSPreview|XboxGameCallableUI|XGpuEject"
     $SafeApps = "$SafeApps|$GoodApps"
-    $RemoveApps   = Get-AppxPackage -allusers | Where-Object {$_.name -notmatch $SafeApps}
+    $RemoveApps   = Get-AppxPackage -allusers | Where-Object { $_.name -notmatch $SafeApps }
     $RemovePrApps = Get-AppxProvisionedPackage -online | Where-Object {$_.displayname -notmatch $SafeApps}
     ForEach ($a in $RemoveApps) {
         Write-Host "Removing app package: $($a.name)"
@@ -60,8 +60,57 @@ Function RemoveApps {
             Remove-AppxPackage -package $a.PackageFullName -allusers -ErrorAction Stop
             $script:appRemoved++
         } catch {
-            Write-Warning "Failed to remove package $($a.PackageFullName): $_"
-            $script:appFail++
+            $errorText = $_.ToString()
+            if ($errorText -match '0x80070032') {
+                Write-Warning "Unsupported per-user removal for package $($a.PackageFullName): $errorText"
+                $fallbackRemoved = $false
+                try {
+                    Write-Host "Attempting local removal for $($a.PackageFullName)..."
+                    Remove-AppxPackage -package $a.PackageFullName -ErrorAction Stop
+                    Write-Host "Local removal succeeded for $($a.PackageFullName)."
+                    $script:appRemoved++
+                    $fallbackRemoved = $true
+                } catch {
+                    Write-Warning "Local removal failed for $($a.PackageFullName): $_"
+                }
+
+                if (-not $fallbackRemoved -and $a.PackageFamilyName) {
+                    try {
+                        Write-Host "Attempting provisioned package cleanup for family $($a.PackageFamilyName)..."
+                        $prov = Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like "*$($a.PackageFamilyName)*" }
+                        if ($prov) {
+                            foreach ($entry in $prov) {
+                                Remove-AppxProvisionedPackage -Online -PackageName $entry.PackageName -ErrorAction Stop
+                            }
+                            Write-Host "Provisioned cleanup succeeded for $($a.PackageFamilyName)."
+                            $script:appRemoved++
+                            $fallbackRemoved = $true
+                        }
+                    } catch {
+                        Write-Warning "Provisioned cleanup failed for $($a.PackageFamilyName): $_"
+                    }
+                }
+
+                if (-not $fallbackRemoved) {
+                    try {
+                        Write-Host "Attempting DISM removal for $($a.PackageFullName)..."
+                        dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($a.PackageFullName)
+                        Write-Host "DISM removal succeeded for $($a.PackageFullName)."
+                        $script:appRemoved++
+                        $fallbackRemoved = $true
+                    } catch {
+                        Write-Warning "DISM removal failed for $($a.PackageFullName): $_"
+                    }
+                }
+
+                if (-not $fallbackRemoved) {
+                    Write-Warning "Could not remove package $($a.PackageFullName)."
+                    $script:appFail++
+                }
+            } else {
+                Write-Warning "Failed to remove package $($a.PackageFullName): $errorText"
+                $script:appFail++
+            }
         }
     }
     ForEach ($p in $RemovePrApps) {
