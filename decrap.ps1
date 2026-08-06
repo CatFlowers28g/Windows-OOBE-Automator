@@ -56,13 +56,22 @@ Function RemoveApps {
     $RemovePrApps = Get-AppxProvisionedPackage -online | Where-Object {$_.displayname -notmatch $SafeApps}
     ForEach ($a in $RemoveApps) {
         Write-Host "Removing app package: $($a.name)"
-        Remove-AppxPackage -package $a.PackageFullName -allusers -erroraction silentlycontinue
-        if ($?) { $script:appRemoved++ } else { $script:appFail++ }
+        try {
+            Remove-AppxPackage -package $a.PackageFullName -allusers -ErrorAction Stop
+            $script:appRemoved++
+        } catch {
+            Write-Warning "Failed to remove package $($a.PackageFullName): $_"
+            $script:appFail++
+        }
     }
     ForEach ($p in $RemovePrApps) {
         Write-Host "Removing provisioned app: $($p.displayname)"
-        Remove-AppxProvisionedPackage -online -packagename $p.packagename -erroraction silentlycontinue
-        if (-not $?) { $script:appFail++ }
+        try {
+            Remove-AppxProvisionedPackage -online -packagename $p.packagename -ErrorAction Stop
+        } catch {
+            Write-Warning "Failed to remove provisioned package $($p.packagename): $_"
+            $script:appFail++
+        }
     }
 }
 
