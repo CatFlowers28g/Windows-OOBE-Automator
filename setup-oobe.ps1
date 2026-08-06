@@ -145,8 +145,20 @@ if (Test-Path $decrapScript) {
     Write-Host "Running Decrapifier..."
     Push-Location $scriptDirectory
     try {
-        Set-ExecutionPolicy Bypass -Scope Process -Force
-        . $decrapScript -AppsOnly -ClearStart -OneDrive
+        if ([Environment]::Is64BitProcess) {
+            $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
+        } else {
+            $psExe = Join-Path $env:WINDIR 'Sysnative\WindowsPowerShell\v1.0\powershell.exe'
+        }
+        if (-not (Test-Path $psExe)) { $psExe = 'powershell.exe' }
+
+        Write-Host "Launching decrap script in a separate PowerShell process..."
+        & $psExe -NoProfile -ExecutionPolicy Bypass -File $decrapScript -AppsOnly -ClearStart -OneDrive
+        if ($LASTEXITCODE -ne 0) {
+            Write-Warning "Decrapifier exited with code $LASTEXITCODE."
+        }
+    } catch {
+        Write-Warning "Failed to run decrap.ps1: $_"
     } finally {
         Pop-Location
     }
