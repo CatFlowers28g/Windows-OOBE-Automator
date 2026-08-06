@@ -57,6 +57,17 @@ Function RemoveApps {
     ForEach ($a in $RemoveApps) {
         Write-Host "Removing app package: $($a.name)"
         try {
+            # Skip packages installed under SystemApps or those marked as framework/system-signed
+            $systemAppsPath = Join-Path $env:WINDIR 'SystemApps'
+            if ($a.InstallLocation -and ($a.InstallLocation -like "$systemAppsPath*")) {
+                Write-Host "Skipping system-protected app (InstallLocation): $($a.Name) at $($a.InstallLocation)"
+                continue
+            }
+            if ($a.IsFramework) {
+                Write-Host "Skipping framework package: $($a.Name)"
+                continue
+            }
+
             Remove-AppxPackage -package $a.PackageFullName -allusers -ErrorAction Stop
             $script:appRemoved++
         } catch {
@@ -91,15 +102,23 @@ Function RemoveApps {
                     }
                 }
 
+                # Only attempt DISM removal for non-system packages (some system apps are protected)
                 if (-not $fallbackRemoved) {
-                    try {
-                        Write-Host "Attempting DISM removal for $($a.PackageFullName)..."
-                        dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($a.PackageFullName)
-                        Write-Host "DISM removal succeeded for $($a.PackageFullName)."
-                        $script:appRemoved++
-                        $fallbackRemoved = $true
-                    } catch {
-                        Write-Warning "DISM removal failed for $($a.PackageFullName): $_"
+                    $canAttemptDism = $true
+                    if ($a.InstallLocation -and ($a.InstallLocation -like "$systemAppsPath*")) {
+                        $canAttemptDism = $false
+                        Write-Host "Skipping DISM fallback for system-protected package: $($a.PackageFullName)"
+                    }
+                    if ($canAttemptDism) {
+                        try {
+                            Write-Host "Attempting DISM removal for $($a.PackageFullName)..."
+                            dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($a.PackageFullName)
+                            Write-Host "DISM removal succeeded for $($a.PackageFullName)."
+                            $script:appRemoved++
+                            $fallbackRemoved = $true
+                        } catch {
+                            Write-Warning "DISM removal failed for $($a.PackageFullName): $_"
+                        }
                     }
                 }
 
