@@ -156,11 +156,11 @@ Function RemoveApps {
     ForEach ($p in $RemovePrApps) {
         $pkgName = $p.PackageName
         $display = $p.DisplayName
-        Write-Host "Handling provisioned app: $display ($pkgName)"
+        Write-Host "Handling provisioned app: $display ($($pkgName))"
         # Verify the provisioned package still exists before attempting removal
         $exists = Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -eq $pkgName }
         if (-not $exists) {
-            Write-Host "Provisioned package not present or already removed: $pkgName. Skipping."
+            Write-Host "Provisioned package not present or already removed: $($pkgName). Skipping."
             continue
         }
 
@@ -174,7 +174,7 @@ Function RemoveApps {
             # Try DISM fallback for provisioned packages
             try {
                 Write-Host "Attempting DISM fallback for provisioned package: $($pkgName)"
-                $dismOut = & dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($pkgName) 2>&1
+                $dismOut = & dism "/Online" "/Remove-ProvisionedAppxPackage" "/PackageName:$($pkgName)" 2>&1
                 if ($LASTEXITCODE -eq 0) {
                     Write-Host "DISM removal succeeded for provisioned package: $($pkgName)"
                     $script:appRemoved++
