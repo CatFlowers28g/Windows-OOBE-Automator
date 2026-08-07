@@ -19,7 +19,9 @@ $ErrorActionPreference = "Stop"
 
 # Capture full script output to a timestamped transcript in Public Documents for post-run review
 try {
-    $Script:TranscriptPath = Join-Path $env:PUBLIC ("decrapifier_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt")
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    if (-not (Test-Path $desktop)) { $desktop = Join-Path $env:PUBLIC 'Desktop' }
+    $Script:TranscriptPath = Join-Path $desktop ("decrapifier_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt")
     Start-Transcript -Path $Script:TranscriptPath -Force -ErrorAction SilentlyContinue
     Write-Host "Transcript started: $Script:TranscriptPath"
 } catch {
@@ -71,24 +73,24 @@ Function RemoveApps {
                 Write-Host "Skipping system-protected app (InstallLocation): $($a.Name) at $($a.InstallLocation)"
                 continue
             }
-            if ($a.IsFramework) {
+                        Write-Host "Removed provisioned package: $($pkgName)"
                 Write-Host "Skipping framework package: $($a.Name)"
                 continue
             }
-
+                        Write-Warning "Remove-AppxProvisionedPackage failed for $($pkgName): $err"
             Write-Host "Removing app package: $($a.Name) (PackageFullName: $($a.PackageFullName))"
             Remove-AppxPackage -package $a.PackageFullName -allusers -ErrorAction Stop
             $script:appRemoved++
-        } catch {
+                            $dismOut = & dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($pkgName) 2>&1
             $errorText = $_.ToString()
-            if ($errorText -match '0x80070032') {
+                                Write-Host "DISM removal succeeded for provisioned package: $($pkgName)"
                 Write-Warning "Unsupported per-user removal for package $($a.PackageFullName): $errorText"
                 $fallbackRemoved = $false
-                try {
+                                Write-Warning "DISM removal failed for provisioned package $($pkgName): $dismOut"
                     Write-Host "Attempting local removal for $($a.PackageFullName)..."
                     Remove-AppxPackage -package $a.PackageFullName -ErrorAction Stop
                     Write-Host "Local removal succeeded for $($a.PackageFullName)."
-                    $script:appRemoved++
+                            Write-Warning "DISM exception for $($pkgName): $_"
                     $fallbackRemoved = $true
                 } catch {
                     Write-Warning "Local removal failed for $($a.PackageFullName): $_"
@@ -166,20 +168,20 @@ Function RemoveApps {
             $script:appRemoved++
         } catch {
             $err = $_.ToString()
-            Write-Warning "Remove-AppxProvisionedPackage failed for $pkgName: $err"
+            Write-Warning "Remove-AppxProvisionedPackage failed for $($pkgName): $err"
             # Try DISM fallback for provisioned packages
             try {
-                Write-Host "Attempting DISM fallback for provisioned package: $pkgName"
+                Write-Host "Attempting DISM fallback for provisioned package: $($pkgName)"
                 $dismOut = & dism /Online /Remove-ProvisionedAppxPackage /PackageName:$pkgName 2>&1
                 if ($LASTEXITCODE -eq 0) {
-                    Write-Host "DISM removal succeeded for provisioned package: $pkgName"
+                    Write-Host "DISM removal succeeded for provisioned package: $($pkgName)"
                     $script:appRemoved++
                 } else {
-                    Write-Warning "DISM removal failed for provisioned package $pkgName: $dismOut"
+                    Write-Warning "DISM removal failed for provisioned package $($pkgName): $dismOut"
                     $script:appFail++
                 }
             } catch {
-                Write-Warning "DISM exception for $pkgName: $_"
+                Write-Warning "DISM exception for $($pkgName): $($_)"
                 $script:appFail++
             }
         }

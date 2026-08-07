@@ -14,7 +14,9 @@ Set-ExecutionPolicy Bypass -Scope Process -Force
 
 # Start a transcript so the entire script output is captured to a file for later review.
 try {
-    $Script:TranscriptPath = Join-Path $env:PUBLIC ("setup-oobe_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt")
+    $desktop = [Environment]::GetFolderPath('Desktop')
+    if (-not (Test-Path $desktop)) { $desktop = Join-Path $env:PUBLIC 'Desktop' }
+    $Script:TranscriptPath = Join-Path $desktop ("setup-oobe_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt")
     Start-Transcript -Path $Script:TranscriptPath -Force -ErrorAction SilentlyContinue
     Write-Host "Transcript started: $Script:TranscriptPath"
 } catch {
