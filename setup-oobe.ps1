@@ -12,6 +12,15 @@ Write-Host "=== Starting Windows OOBE automation ===" -ForegroundColor Green
 Write-Host "Current directory: $($MyInvocation.MyCommand.Path)"
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
+# Start a transcript so the entire script output is captured to a file for later review.
+try {
+    $Script:TranscriptPath = Join-Path $env:PUBLIC ("setup-oobe_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt")
+    Start-Transcript -Path $Script:TranscriptPath -Force -ErrorAction SilentlyContinue
+    Write-Host "Transcript started: $Script:TranscriptPath"
+} catch {
+    Write-Warning "Failed to start transcript: $_"
+}
+
 
 # Configure winget settings to bypass certificate pinning
 Write-Host "`nConfiguring winget settings..." -ForegroundColor Cyan
@@ -210,6 +219,14 @@ $packages = @(
 foreach ($package in $packages) {
     Write-Host "Installing $package for all users..."
     winget install --id $package -e --silent --scope machine --accept-package-agreements --accept-source-agreements
+}
+
+# Stop the transcript and report location
+try {
+    Stop-Transcript -ErrorAction SilentlyContinue
+    if ($Script:TranscriptPath) { Write-Host "Full run log saved to: $Script:TranscriptPath" }
+} catch {
+    Write-Warning "Failed to stop transcript: $_"
 }
 
 

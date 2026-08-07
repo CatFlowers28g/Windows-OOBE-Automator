@@ -17,6 +17,15 @@
 
 $ErrorActionPreference = "Stop"
 
+# Capture full script output to a timestamped transcript in Public Documents for post-run review
+try {
+    $Script:TranscriptPath = Join-Path $env:PUBLIC ("decrapifier_$(Get-Date -Format 'yyyyMMdd_HHmmss').txt")
+    Start-Transcript -Path $Script:TranscriptPath -Force -ErrorAction SilentlyContinue
+    Write-Host "Transcript started: $Script:TranscriptPath"
+} catch {
+    Write-Warning "Failed to start transcript: $_"
+}
+
 #--Windows 11 guard (build 22000 = W11 21H2)--
 $osBuild = [int](Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion' CurrentBuildNumber -ErrorAction SilentlyContinue).CurrentBuildNumber
 if ($osBuild -and $osBuild -lt 22000) {
@@ -250,16 +259,21 @@ Function StageFinisher {
 }
 
 #---Run---
-Write-Host "******Onboarding Decrapifier (SYSTEM)******"
-RemoveApps
-SeedDefaultHive
-SeedDefaultStart
-$staged = StageFinisher
+try {
+    Write-Host "******Onboarding Decrapifier (SYSTEM)******"
+    RemoveApps
+    SeedDefaultHive
+    SeedDefaultStart
+    $staged = StageFinisher
 
-$exit = 0
-if ($appFail -gt 0 -or -not $staged) { $exit = 1 }
+    $exit = 0
+    if ($appFail -gt 0 -or -not $staged) { $exit = 1 }
 
-Write-Host "<-Start Result->"
-Write-Host "STATUS=Apps removed: $appRemoved | App failures: $appFail | Finisher staged: $staged | Tech: run Finish-Decrapifier.cmd from Public Documents as the user account"
-Write-Host "<-End Result->"
-exit $exit
+    Write-Host "<-Start Result->"
+    Write-Host "STATUS=Apps removed: $appRemoved | App failures: $appFail | Finisher staged: $staged | Tech: run Finish-Decrapifier.cmd from Public Documents as the user account"
+    Write-Host "<-End Result->"
+    exit $exit
+} finally {
+    try { Stop-Transcript -ErrorAction SilentlyContinue } catch { }
+    if ($Script:TranscriptPath) { Write-Host "Full run log saved to: $Script:TranscriptPath" }
+}
