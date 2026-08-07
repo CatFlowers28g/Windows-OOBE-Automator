@@ -50,12 +50,11 @@ $appFail    = 0
 $staged     = $false
 
 Function RemoveApps {
-    $SafeApps = "AAD.brokerplugin|AccountsControl|apprep.chxapp|AssignedAccess|AsyncTextService|BioEnrollment|CapturePicker|CloudExperienceHost|ContentDeliveryManager|CrossDevice|DesktopAppInstaller|ECApp|Edge|Extension|GetStarted|ImmersiveControlPanel|LockApp|NarratorQuickStart|Native|NcsiUwpApp|OOBENetworkCaptivePortal|OOBENetworkConnectionFlow|ParentalControls|PeopleExperienceHost|PinningConfirmationDialog|PPIProjection|SecHealthUI|SecureAssessmentBrowser|ShellExperienceHost|StartExperiencesApp|StartMenuExperienceHost|UI.Xaml|VCLibs|Wallet|WebExperience|Win32WebViewHost|WindowsAppRuntime|Windows.CBSPreview|XboxGameCallableUI|XGpuEject"
+    $SafeApps = "AAD.brokerplugin|AccountsControl|apprep.chxapp|AssignedAccess|AsyncTextService|BioEnrollment|CapturePicker|CloudExperienceHost|ContentDeliveryManager|CrossDevice|DesktopAppInstaller|ECApp|Edge|Extension|GetStarted|ImmersiveControlPanel|LockApp|NarratorQuickStart|Native|NcsiUwpApp|OOBENetworkCaptivePortal|OOBENetworkConnectionFlow|ParentalControls|PeopleExperienceHost|PinningConfirmationDialog|PPIProjection|SecHealthUI|SecureAssessmentBrowser|ShellExperienceHost|StartExperiencesApp|StartMenuExperienceHost|UI.Xaml|VCLibs|Wallet|WebExperience|Win32WebViewHost|WindowsAppRuntime|Windows.CBSPreview|Update|XboxGameCallableUI|XGpuEject"
     $SafeApps = "$SafeApps|$GoodApps"
     $RemoveApps   = Get-AppxPackage -allusers | Where-Object { $_.name -notmatch $SafeApps }
     $RemovePrApps = Get-AppxProvisionedPackage -online | Where-Object {$_.displayname -notmatch $SafeApps}
     ForEach ($a in $RemoveApps) {
-        Write-Host "Removing app package: $($a.name)"
         try {
             # Skip packages installed under SystemApps or those marked as framework/system-signed
             $systemAppsPath = Join-Path $env:WINDIR 'SystemApps'
@@ -68,6 +67,7 @@ Function RemoveApps {
                 continue
             }
 
+            Write-Host "Removing app package: $($a.Name) (PackageFullName: $($a.PackageFullName))"
             Remove-AppxPackage -package $a.PackageFullName -allusers -ErrorAction Stop
             $script:appRemoved++
         } catch {
@@ -91,11 +91,15 @@ Function RemoveApps {
                         $prov = Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -like "*$($a.PackageFamilyName)*" }
                         if ($prov) {
                             foreach ($entry in $prov) {
-                                Remove-AppxProvisionedPackage -Online -PackageName $entry.PackageName -ErrorAction Stop
+                                try {
+                                    Remove-AppxProvisionedPackage -Online -PackageName $entry.PackageName -ErrorAction Stop
+                                    Write-Host "Removed provisioned entry: $($entry.PackageName)"
+                                    $script:appRemoved++
+                                } catch {
+                                    Write-Warning "Provisioned entry removal failed for $($entry.PackageName): $_"
+                                }
                             }
-                            Write-Host "Provisioned cleanup succeeded for $($a.PackageFamilyName)."
-                            $script:appRemoved++
-                            $fallbackRemoved = $true
+                            if ($prov) { $fallbackRemoved = $true }
                         }
                     } catch {
                         Write-Warning "Provisioned cleanup failed for $($a.PackageFamilyName): $_"
@@ -112,10 +116,14 @@ Function RemoveApps {
                     if ($canAttemptDism) {
                         try {
                             Write-Host "Attempting DISM removal for $($a.PackageFullName)..."
-                            dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($a.PackageFullName)
-                            Write-Host "DISM removal succeeded for $($a.PackageFullName)."
-                            $script:appRemoved++
-                            $fallbackRemoved = $true
+                            $dismOut = & dism /Online /Remove-ProvisionedAppxPackage /PackageName:$($a.PackageFullName) 2>&1
+                            if ($LASTEXITCODE -eq 0) {
+                                Write-Host "DISM removal succeeded for $($a.PackageFullName)."
+                                $script:appRemoved++
+                                $fallbackRemoved = $true
+                            } else {
+                                Write-Warning "DISM removal reported failure for $($a.PackageFullName): $dismOut"
+                            }
                         } catch {
                             Write-Warning "DISM removal failed for $($a.PackageFullName): $_"
                         }
@@ -133,12 +141,38 @@ Function RemoveApps {
         }
     }
     ForEach ($p in $RemovePrApps) {
-        Write-Host "Removing provisioned app: $($p.displayname)"
+        $pkgName = $p.PackageName
+        $display = $p.DisplayName
+        Write-Host "Handling provisioned app: $display ($pkgName)"
+        # Verify the provisioned package still exists before attempting removal
+        $exists = Get-AppxProvisionedPackage -Online | Where-Object { $_.PackageName -eq $pkgName }
+        if (-not $exists) {
+            Write-Host "Provisioned package not present or already removed: $pkgName. Skipping."
+            continue
+        }
+
         try {
-            Remove-AppxProvisionedPackage -online -packagename $p.packagename -ErrorAction Stop
+            Remove-AppxProvisionedPackage -online -packagename $pkgName -ErrorAction Stop
+            Write-Host "Removed provisioned package: $pkgName"
+            $script:appRemoved++
         } catch {
-            Write-Warning "Failed to remove provisioned package $($p.packagename): $_"
-            $script:appFail++
+            $err = $_.ToString()
+            Write-Warning "Remove-AppxProvisionedPackage failed for $pkgName: $err"
+            # Try DISM fallback for provisioned packages
+            try {
+                Write-Host "Attempting DISM fallback for provisioned package: $pkgName"
+                $dismOut = & dism /Online /Remove-ProvisionedAppxPackage /PackageName:$pkgName 2>&1
+                if ($LASTEXITCODE -eq 0) {
+                    Write-Host "DISM removal succeeded for provisioned package: $pkgName"
+                    $script:appRemoved++
+                } else {
+                    Write-Warning "DISM removal failed for provisioned package $pkgName: $dismOut"
+                    $script:appFail++
+                }
+            } catch {
+                Write-Warning "DISM exception for $pkgName: $_"
+                $script:appFail++
+            }
         }
     }
 }

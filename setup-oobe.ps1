@@ -6,14 +6,18 @@ if (-not ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdent
     exit 1
 }
 
+
 # Allow this script to run without changing the system-wide execution policy
 Write-Host "=== Starting Windows OOBE automation ===" -ForegroundColor Green
 Write-Host "Current directory: $($MyInvocation.MyCommand.Path)"
 Set-ExecutionPolicy Bypass -Scope Process -Force
 
+
 # Configure winget settings to bypass certificate pinning
 Write-Host "`nConfiguring winget settings..." -ForegroundColor Cyan
 winget settings --enable BypassCertificatePinningForMicrosoftStore
+
+
 
 # Attempt to join the Wi-Fi network as the very first action
 Write-Host "`n[0/3] Joining Wi‑Fi network 'Syand Service'..." -ForegroundColor Cyan
@@ -91,6 +95,9 @@ try {
     exit 1
 }
 
+
+
+
 # Configure timezone and synchronize time
 Write-Host "`n[1/3] Configuring timezone and synchronizing time..." -ForegroundColor Cyan
 try {
@@ -118,6 +125,9 @@ try {
     Write-Warning "Timezone/time sync warning: $_"
 }
 
+
+
+
 # Disable standby on AC and DC power
 Write-Host "`n[2/3] Disabling standby and display timeout on AC and DC power..." -ForegroundColor Cyan
 try {
@@ -135,6 +145,9 @@ try {
 } catch {
     Write-Warning "Power configuration warning: $_"
 }
+
+
+
 
 Write-Host "`n[3/3] Preparing to run Decrapifier..." -ForegroundColor Cyan
 
@@ -179,6 +192,9 @@ Get-AppxProvisionedPackage -Online | Where-Object {
 } | ForEach-Object {
     Remove-AppxProvisionedPackage -Online -PackageName $_.PackageName -ErrorAction SilentlyContinue
 }
+
+
+
 # Install applications using winget
 $packages = @(
     'Google.Chrome',
@@ -197,8 +213,3 @@ foreach ($package in $packages) {
 }
 
 
-# Notes:
-# - The computer will restart after Rename-Computer. If you want the script to continue installing apps before restart,
-#   move Rename-Computer to the end and remove -Restart from the Rename-Computer call.
-# - "decrap" operations are not defined in this script. Add cleanup commands here if needed.
-# - A restart is already triggered by Rename-Computer above.
