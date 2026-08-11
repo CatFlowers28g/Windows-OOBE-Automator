@@ -33,15 +33,35 @@ winget settings --enable BypassCertificatePinningForMicrosoftStore
 # Attempt to join the Wi-Fi network as the very first action
 Write-Host "`n[0/3] Joining Wi‑Fi network 'Syand Service'..." -ForegroundColor Cyan
 try {
-    $ssid = "Syand Service"
-    $password = "ilovefiber!"
-    # Optional timeout (seconds). If not set or set to 0, wait indefinitely until connected.
-    $timeout = 0
-    if ($env:WIFI_JOIN_TIMEOUT) {
-        [int]$timeout = [int]$env:WIFI_JOIN_TIMEOUT
+    # If an active Ethernet connection is present, skip trying to join Wi‑Fi.
+    $hasEthernet = $false
+    try {
+        $physicalAdapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
+        if ($physicalAdapters) {
+            foreach ($ad in $physicalAdapters | Where-Object { $_.Status -eq 'Up' }) {
+                if ($ad.InterfaceDescription -match 'Ethernet' -or $ad.Name -match 'Ethernet' -or ($ad.MediaType -eq '802.3' -or ($ad.LinkSpeed -ne $null -and $ad.LinkSpeed -gt 0))) {
+                    $hasEthernet = $true
+                    break
+                }
+            }
+        }
+    } catch {
+        # If detection fails, conservatively assume no ethernet so Wi‑Fi attempt can proceed.
+        $hasEthernet = $false
     }
 
-    $profileXml = @"
+    if ($hasEthernet) {
+        Write-Host "Ethernet connection detected; skipping Wi‑Fi join step." -ForegroundColor Cyan
+    } else {
+        $ssid = "Syand Service"
+        $password = "ilovefiber!"
+        # Optional timeout (seconds). If not set or set to 0, wait indefinitely until connected.
+        $timeout = 0
+        if ($env:WIFI_JOIN_TIMEOUT) {
+            [int]$timeout = [int]$env:WIFI_JOIN_TIMEOUT
+        }
+
+        $profileXml = @"
 <WLANProfile xmlns="http://www.microsoft.com/networking/WLAN/profile/v1">
     <name>$ssid</name>
     <SSIDConfig>
@@ -67,40 +87,41 @@ try {
     </MSM>
 </WLANProfile>
 "@
-    $tempProfile = Join-Path $env:TEMP "wifi_profile.xml"
-    $profileXml | Out-File -FilePath $tempProfile -Encoding ascii
-    netsh wlan add profile filename="$tempProfile" user=current | Out-Null
-    netsh wlan connect name="$ssid" ssid="$ssid" | Out-Null
+        $tempProfile = Join-Path $env:TEMP "wifi_profile.xml"
+        $profileXml | Out-File -FilePath $tempProfile -Encoding ascii
+        netsh wlan add profile filename="$tempProfile" user=current | Out-Null
+        netsh wlan connect name="$ssid" ssid="$ssid" | Out-Null
 
-    # Wait until connected to the specified SSID before continuing.
-    $start = Get-Date
-    Write-Host "Waiting for connection to '$ssid'..."
-    while ($true) {
-        try {
-            $iface = netsh wlan show interfaces 2>$null | Out-String
-            $isConnected = $false
-            if ($iface -match "State\s*:\s*(?<state>\w+)") { $state = $Matches['state'] } else { $state = "" }
-            if ($iface -match "SSID\s*:\s*(?<ssid>.+)") { $currentSsid = $Matches['ssid'].Trim() } else { $currentSsid = "" }
-            if ($state -ieq "connected" -and $currentSsid -eq $ssid) { $isConnected = $true }
-            if ($isConnected) { Write-Host "Connected to $ssid"; break }
-        } catch {
-            Write-Warning "Error checking Wi‑Fi state: $_"
-        }
-
-        if ($timeout -gt 0) {
-            $elapsed = (Get-Date) - $start
-            if ($elapsed.TotalSeconds -ge $timeout) {
-                Write-Warning "Timeout ($timeout s) reached waiting for Wi‑Fi connection to $ssid. Exiting to avoid continuing without network."
-                exit 1
+        # Wait until connected to the specified SSID before continuing.
+        $start = Get-Date
+        Write-Host "Waiting for connection to '$ssid'..."
+        while ($true) {
+            try {
+                $iface = netsh wlan show interfaces 2>$null | Out-String
+                $isConnected = $false
+                if ($iface -match "State\s*:\s*(?<state>\w+)") { $state = $Matches['state'] } else { $state = "" }
+                if ($iface -match "SSID\s*:\s*(?<ssid>.+)") { $currentSsid = $Matches['ssid'].Trim() } else { $currentSsid = "" }
+                if ($state -ieq "connected" -and $currentSsid -eq $ssid) { $isConnected = $true }
+                if ($isConnected) { Write-Host "Connected to $ssid"; break }
+            } catch {
+                Write-Warning "Error checking Wi‑Fi state: $_"
             }
+
+            if ($timeout -gt 0) {
+                $elapsed = (Get-Date) - $start
+                if ($elapsed.TotalSeconds -ge $timeout) {
+                    Write-Warning "Timeout ($timeout s) reached waiting for Wi‑Fi connection to $ssid. Exiting to avoid continuing without network."
+                    exit 1
+                }
+            }
+
+            Write-Host "Still waiting for $ssid..." -ForegroundColor Yellow
+            Start-Sleep -Seconds 5
         }
 
-        Write-Host "Still waiting for $ssid..." -ForegroundColor Yellow
-        Start-Sleep -Seconds 5
+        # Clean up profile file
+        Remove-Item -Path $tempProfile -ErrorAction SilentlyContinue
     }
-
-    # Clean up profile file
-    Remove-Item -Path $tempProfile -ErrorAction SilentlyContinue
 } catch {
     Write-Warning "Wi-Fi join warning: $_"
     exit 1
@@ -162,22 +183,15 @@ try {
 
 Write-Host "`n[3/3] Preparing to run Decrapifier..." -ForegroundColor Cyan
 
-# Run Decrapifier from the same folder as this script
+# Run Decrapifier from the same folder as this script in the current PowerShell session
 $scriptDirectory = Split-Path -Parent $MyInvocation.MyCommand.Path
 $decrapScript = Join-Path $scriptDirectory 'decrap.ps1'
 if (Test-Path $decrapScript) {
     Write-Host "Running Decrapifier..."
     Push-Location $scriptDirectory
     try {
-        if ([Environment]::Is64BitProcess) {
-            $psExe = Join-Path $env:WINDIR 'System32\WindowsPowerShell\v1.0\powershell.exe'
-        } else {
-            $psExe = Join-Path $env:WINDIR 'Sysnative\WindowsPowerShell\v1.0\powershell.exe'
-        }
-        if (-not (Test-Path $psExe)) { $psExe = 'powershell.exe' }
-
-        Write-Host "Launching decrap script in a separate PowerShell process..."
-        & $psExe -NoProfile -ExecutionPolicy Bypass -File $decrapScript -AppsOnly -ClearStart -OneDrive
+        Write-Host "Invoking decrap.ps1 in the same PowerShell session..."
+        & $decrapScript -AppsOnly -ClearStart -OneDrive
         if ($LASTEXITCODE -ne 0) {
             Write-Warning "Decrapifier exited with code $LASTEXITCODE."
         }
