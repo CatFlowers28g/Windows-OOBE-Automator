@@ -39,7 +39,7 @@ try {
         $physicalAdapters = Get-NetAdapter -Physical -ErrorAction SilentlyContinue
         if ($physicalAdapters) {
             foreach ($ad in $physicalAdapters | Where-Object { $_.Status -eq 'Up' }) {
-                if ($ad.InterfaceDescription -match 'Ethernet' -or $ad.Name -match 'Ethernet' -or ($ad.MediaType -eq '802.3' -or ($ad.LinkSpeed -ne $null -and $ad.LinkSpeed -gt 0))) {
+                if ($ad.InterfaceDescription -match 'Ethernet' -or $ad.Name -match 'Ethernet' -or ($ad.MediaType -eq '802.3' -or ($null -ne $ad.LinkSpeed -and $ad.LinkSpeed -gt 0))) {
                     $hasEthernet = $true
                     break
                 }

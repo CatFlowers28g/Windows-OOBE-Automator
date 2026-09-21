@@ -180,7 +180,24 @@ $btnRun.Add_Click({
         $shell = Join-Path $env:LOCALAPPDATA "Microsoft\Windows\Shell"
         if (-not (Test-Path $shell)) { New-Item -ItemType Directory -Path $shell -Force | Out-Null }
         Set-Content -Path (Join-Path $shell "LayoutModification.json") -Value '{ "pinnedList": [] }' -Encoding UTF8 -Force
-        Log "Clear Start menu: DONE"
+
+        # LayoutModification.json is only read the FIRST time Start initializes for a profile.
+        # Once a profile has signed in, pinned tiles live in a cached binary database
+        # (start2.bin, under the StartMenuExperienceHost package). Overwriting the json alone
+        # is a no-op at that point, so clear the cache and restart Explorer/Start to force a reseed.
+        try {
+            Get-Process -Name StartMenuExperienceHost,ShellExperienceHost -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            $smehState = Join-Path $env:LOCALAPPDATA "Packages\Microsoft.Windows.StartMenuExperienceHost_cw5n1h2txyewy\LocalState"
+            if (Test-Path $smehState) {
+                Get-ChildItem -Path $smehState -Filter "start2*.bin" -ErrorAction SilentlyContinue | Remove-Item -Force -ErrorAction SilentlyContinue
+            }
+            Get-Process -Name explorer -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
+            Start-Sleep -Milliseconds 500
+            Start-Process explorer.exe
+            Log "Clear Start menu: DONE (Start cache reset - pinned tiles cleared immediately)"
+        } catch {
+            Log "Clear Start menu: layout written, but cache reset failed ($_) - sign out/in to apply"
+        }
     } else { Log "Clear Start menu: skipped" }
 
     if ($chkRemoveOD.Checked) {
